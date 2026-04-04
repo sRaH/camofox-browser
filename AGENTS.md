@@ -74,6 +74,18 @@ POST /tabs/:tabId/forward  {"userId": "agent1"}
 POST /tabs/:tabId/refresh  {"userId": "agent1"}
 ```
 
+### Evaluate JavaScript
+```bash
+POST /tabs/:tabId/evaluate
+{"userId": "agent1", "expression": "document.title"}
+{"userId": "agent1", "expression": "await fetch(args[0]).then(r => r.json())", "args": ["https://example.com"]}
+{"userId": "agent1", "expression": "1 + 1", "awaitResult": false}
+```
+- `expression` (required): JavaScript expression string (max 100KB)
+- `args` (optional): Array of serializable values passed to the expression via `args`
+- `awaitResult` (optional, default `true`): Wrap in async IIFE to support `await`
+- Returns: `{"ok": true, "result": <value>}` or `{"ok": false, "error": "message"}`
+
 ### Get Links
 ```bash
 GET /tabs/:tabId/links?userId=agent1&limit=50

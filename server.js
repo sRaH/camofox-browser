@@ -2049,26 +2049,50 @@ app.get('/tabs/:tabId/stats', async (req, res) => {
 });
 
 // Evaluate JavaScript in page context
-app.post('/tabs/:tabId/evaluate', express.json({ limit: '1mb' }), async (req, res) => {
+app.post('/tabs/:tabId/evaluate', express.json({ limit: '100kb' }), async (req, res) => {
+  const tabId = req.params.tabId;
   try {
     const { userId, expression } = req.body;
     if (!userId) return res.status(400).json({ error: 'userId is required' });
     if (!expression) return res.status(400).json({ error: 'expression is required' });
+    if (typeof expression !== 'string') return res.status(400).json({ error: 'expression must be a string' });
+    if (Buffer.byteLength(expression, 'utf8') > 100 * 1024) return res.status(400).json({ error: 'expression exceeds 100KB limit' });
 
     const session = sessions.get(normalizeUserId(userId));
-    const found = session && findTab(session, req.params.tabId);
+    const found = session && findTab(session, tabId);
     if (!found) return res.status(404).json({ error: 'Tab not found' });
 
     session.lastAccess = Date.now();
     const { tabState } = found;
     tabState.toolCalls++; tabState.consecutiveTimeouts = 0;
 
-    const result = await tabState.page.evaluate(expression);
-    log('info', 'evaluate', { reqId: req.reqId, tabId: req.params.tabId, userId, resultType: typeof result });
+    const args = req.body.args || [];
+    const awaitResult = req.body.awaitResult !== false;
+
+    const result = await withUserLimit(userId, () => withTabLock(tabId, async () => {
+      if (awaitResult) {
+        return tabState.page.evaluate(
+          ({ expression, args }) => {
+            const fn = new Function('...args', `return (async () => { return (${expression}); })()`);
+            return fn(...args);
+          },
+          { expression, args }
+        );
+      }
+      return tabState.page.evaluate(
+        ({ expression, args }) => {
+          const fn = new Function('...args', `return (${expression})`);
+          return fn(...args);
+        },
+        { expression, args }
+      );
+    }));
+
+    log('info', 'evaluate', { reqId: req.reqId, tabId, userId, resultType: typeof result, awaitResult });
     res.json({ ok: true, result });
   } catch (err) {
-    log('error', 'evaluate failed', { reqId: req.reqId, error: err.message });
-    res.status(500).json({ error: safeError(err) });
+    log('error', 'evaluate failed', { reqId: req.reqId, tabId, error: err.message });
+    handleRouteError(err, req, res);
   }
 });
 
