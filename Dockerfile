@@ -8,6 +8,8 @@ ARG CAMOUFOX_URL=https://github.com/daijro/camoufox/releases/download/v${CAMOUFO
 
 # Install dependencies for Camoufox (Firefox-based)
 RUN apt-get update && apt-get install -y \
+    # X11/Display server for headless mode
+    xvfb \
     # Firefox dependencies
     libgtk-3-0 \
     libdbus-glib-1-2 \
@@ -23,6 +25,9 @@ RUN apt-get update && apt-get install -y \
     libxrender1 \
     libxss1 \
     libxtst6 \
+    # Additional Firefox runtime libs
+    libpci3 \
+    libdrm2 \
     # Fonts
     fonts-liberation \
     fonts-noto-color-emoji \
@@ -60,7 +65,8 @@ COPY lib/ ./lib/
 
 ENV NODE_ENV=production
 ENV CAMOFOX_PORT=3000
+ENV DISPLAY=:99
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "node --max-old-space-size=${MAX_OLD_SPACE_SIZE:-128} server.js"]
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp & sleep 1 && node --max-old-space-size=${MAX_OLD_SPACE_SIZE:-128} server.js"]
