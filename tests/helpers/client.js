@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { CI_TIMEOUT } from './test-env.js';
 
 class BrowserClient {
   constructor(baseUrl) {
@@ -7,7 +8,7 @@ class BrowserClient {
     this.sessionKey = crypto.randomUUID();
     this.listItemId = this.sessionKey; // Legacy alias
     this.tabs = [];
-    this.timeout = 30000; // 30 second default timeout
+    this.timeout = CI_TIMEOUT;
   }
   
   async request(method, path, body = null, options = {}) {
@@ -59,15 +60,23 @@ class BrowserClient {
   }
   
   // Tab management
-  async createTab(url = null) {
+  async createTab(url = null, { retries = 2 } = {}) {
     const body = { userId: this.userId, sessionKey: this.sessionKey };
     if (url) body.url = url;
-    
-    const result = await this.request('POST', '/tabs', body);
-    if (result.tabId) {
-      this.tabs.push(result.tabId);
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const result = await this.request('POST', '/tabs', body);
+        if (result.tabId) {
+          this.tabs.push(result.tabId);
+        }
+        return result;
+      } catch (err) {
+        const retriable = err.status === 500 && /closed|disposed|terminated/i.test(err.message);
+        if (!retriable || attempt === retries) throw err;
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
     }
-    return result;
   }
   
   async navigate(tabId, urlOrMacro) {
@@ -118,7 +127,11 @@ class BrowserClient {
   async scroll(tabId, options) {
     return this.request('POST', `/tabs/${tabId}/scroll`, { userId: this.userId, ...options });
   }
-  
+
+  async viewport(tabId, { width, height }) {
+    return this.request('POST', `/tabs/${tabId}/viewport`, { userId: this.userId, width, height });
+  }
+
   async back(tabId) {
     return this.request('POST', `/tabs/${tabId}/back`, { userId: this.userId });
   }

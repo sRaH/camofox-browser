@@ -1,10 +1,10 @@
-FROM node:20-slim
+FROM node:22-slim AS camofox-browser
 
 # Pinned Camoufox version for reproducible builds
 # Update these when upgrading Camoufox
 ARG CAMOUFOX_VERSION=135.0.1
 ARG CAMOUFOX_RELEASE=beta.24
-ARG CAMOUFOX_URL=https://github.com/daijro/camoufox/releases/download/v${CAMOUFOX_VERSION}-${CAMOUFOX_RELEASE}/camoufox-${CAMOUFOX_VERSION}-${CAMOUFOX_RELEASE}-lin.x86_64.zip
+ARG ARCH=x86_64
 
 # Install dependencies for Camoufox (Firefox-based)
 RUN apt-get update && apt-get install -y \
@@ -25,9 +25,13 @@ RUN apt-get update && apt-get install -y \
     libxrender1 \
     libxss1 \
     libxtst6 \
-    # Additional Firefox runtime libs
-    libpci3 \
-    libdrm2 \
+    # Mesa OpenGL/EGL for WebGL support (software rendering via llvmpipe)
+    # Without these, Firefox cannot create WebGL contexts -- a major bot detection signal
+    libegl1-mesa \
+    libgl1-mesa-dri \
+    libgbm1 \
+    # Xvfb virtual display -- runs Camoufox as if on a real desktop (better anti-detection)
+    xvfb \
     # Fonts
     fonts-liberation \
     fonts-noto-color-emoji \
@@ -40,33 +44,45 @@ RUN apt-get update && apt-get install -y \
     python3-minimal \
     && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp for YouTube transcript extraction (no browser needed)
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
-    && chmod +x /usr/local/bin/yt-dlp
-
-# Pre-bake Camoufox browser binary into image
-# This avoids downloading at runtime and pins the version
+# Pre-bake Camoufox browser binary into image via bind mount (downloaded by Makefile)
 # Note: unzip returns exit code 1 for warnings (Unicode filenames), so we use || true and verify
-RUN mkdir -p /root/.cache/camoufox \
-    && curl -L -o /tmp/camoufox.zip "${CAMOUFOX_URL}" \
-    && (unzip -q /tmp/camoufox.zip -d /root/.cache/camoufox || true) \
-    && rm /tmp/camoufox.zip \
+RUN --mount=type=bind,source=dist,target=/dist \
+    mkdir -p /root/.cache/camoufox \
+    && (unzip -q /dist/camoufox-${ARCH}.zip -d /root/.cache/camoufox || true) \
     && chmod -R 755 /root/.cache/camoufox \
     && echo "{\"version\":\"${CAMOUFOX_VERSION}\",\"release\":\"${CAMOUFOX_RELEASE}\"}" > /root/.cache/camoufox/version.json \
     && test -f /root/.cache/camoufox/camoufox-bin && echo "Camoufox installed successfully"
 
+# Install yt-dlp for YouTube transcript extraction (no browser needed)
+RUN --mount=type=bind,source=dist,target=/dist \
+    install -m 755 /dist/yt-dlp-${ARCH} /usr/local/bin/yt-dlp
+
 WORKDIR /app
 
 COPY package.json ./
+COPY scripts/ ./scripts/
 RUN npm install --production
 
 COPY server.js ./
+COPY camofox.config.json ./
 COPY lib/ ./lib/
+COPY plugins/ ./plugins/
+COPY scripts/ ./scripts/
+
+# Install default plugin dependencies (apt packages + post-install hooks)
+RUN sh scripts/install-plugin-deps.sh
 
 ENV NODE_ENV=production
-ENV CAMOFOX_PORT=3000
-ENV DISPLAY=:99
+ENV CAMOFOX_PORT=9377
 
-EXPOSE 3000
+EXPOSE 9377
 
-CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp & sleep 1 && node --max-old-space-size=${MAX_OLD_SPACE_SIZE:-128} server.js"]
+CMD ["sh", "-c", "node --max-old-space-size=${MAX_OLD_SPACE_SIZE:-128} server.js"]
+
+# Optional: rebuild plugin deps after adding third-party plugins
+# Usage: docker build --target with-plugins -t camofox-browser .
+FROM camofox-browser AS with-plugins
+COPY plugins/ ./plugins/
+COPY camofox.config.json ./
+COPY scripts/install-plugin-deps.sh /tmp/install-plugin-deps.sh
+RUN /tmp/install-plugin-deps.sh && rm /tmp/install-plugin-deps.sh

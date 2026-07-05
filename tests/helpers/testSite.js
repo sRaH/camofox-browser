@@ -235,7 +235,7 @@ function createTestApp() {
     res.send(body);
   });
 
-  // Large page for snapshot truncation tests — simulates a big product listing
+  // Large page for snapshot truncation tests -- simulates a big product listing
   app.get('/large-page', (req, res) => {
     const count = parseInt(req.query.count) || 500;
     const items = Array.from({ length: count }, (_, i) =>
@@ -280,6 +280,30 @@ function createTestApp() {
         <h1>Scroll Test Page</h1>
         ${items}
         <div id="bottom">Bottom of page</div>
+      </body></html>
+    `);
+  });
+
+  // Page with target=_blank link and window.open button (popup test)
+  app.get('/popup-source', (req, res) => {
+    res.send(`
+      <!DOCTYPE html>
+      <html><head><title>Popup Source</title></head>
+      <body>
+        <h1>Popup Source Page</h1>
+        <a id="blankLink" href="/popup-target" target="_blank">Open in new tab</a>
+        <button id="openBtn" onclick="window.open('/popup-target', '_blank')">window.open</button>
+      </body></html>
+    `);
+  });
+
+  app.get('/popup-target', (req, res) => {
+    res.send(`
+      <!DOCTYPE html>
+      <html><head><title>Popup Target</title></head>
+      <body>
+        <h1>Popup Target Page</h1>
+        <p>This page was opened as a popup.</p>
       </body></html>
     `);
   });
