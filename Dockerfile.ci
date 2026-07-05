@@ -47,16 +47,16 @@ RUN apt-get update && apt-get install -y \
 # Download and install Camoufox
 RUN set -eux; \
     case "${TARGETARCH}" in \
-      amd64) CAMOUFOX_ARCH="x86_64"; YTDLP_SUFFIX="" ;; \
-      arm64) CAMOUFOX_ARCH="arm64";   YTDLP_SUFFIX="_aarch64" ;; \
+      amd64) CAMOUFOX_ARCH="x86_64"; CAMOUFOX_ASSET_RELEASE="alpha.26"; YTDLP_SUFFIX="" ;; \
+      arm64) CAMOUFOX_ARCH="arm64";   CAMOUFOX_ASSET_RELEASE="alpha.25"; YTDLP_SUFFIX="_aarch64" ;; \
       *) echo "Unsupported arch: ${TARGETARCH}" && exit 1 ;; \
     esac; \
     mkdir -p /root/.cache/camoufox; \
-    curl -fSL "https://github.com/daijro/camoufox/releases/download/v${CAMOUFOX_VERSION}-${CAMOUFOX_TAG}/camoufox-${CAMOUFOX_VERSION}-${CAMOUFOX_RELEASE}-lin.${CAMOUFOX_ARCH}.zip" \
+    curl -fSL "https://github.com/daijro/camoufox/releases/download/v${CAMOUFOX_VERSION}-${CAMOUFOX_TAG}/camoufox-${CAMOUFOX_VERSION}-${CAMOUFOX_ASSET_RELEASE}-lin.${CAMOUFOX_ARCH}.zip" \
       -o /tmp/camoufox.zip; \
     (unzip -q /tmp/camoufox.zip -d /root/.cache/camoufox || true); \
     chmod -R 755 /root/.cache/camoufox; \
-    echo "{\"version\":\"${CAMOUFOX_VERSION}\",\"release\":\"${CAMOUFOX_RELEASE}\"}" > /root/.cache/camoufox/version.json; \
+    echo "{\"version\":\"${CAMOUFOX_VERSION}\",\"release\":\"${CAMOUFOX_ASSET_RELEASE}\"}" > /root/.cache/camoufox/version.json; \
     test -f /root/.cache/camoufox/camoufox-bin && echo "Camoufox installed successfully"; \
     rm /tmp/camoufox.zip; \
     curl -fSL "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux${YTDLP_SUFFIX}" \
