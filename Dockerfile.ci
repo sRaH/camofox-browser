@@ -4,6 +4,7 @@
 FROM node:slim
 
 ARG CAMOUFOX_VERSION=150.0.2
+ARG CAMOUFOX_TAG=beta.25
 ARG CAMOUFOX_RELEASE=alpha.26
 ARG TARGETARCH
 
@@ -51,7 +52,7 @@ RUN set -eux; \
       *) echo "Unsupported arch: ${TARGETARCH}" && exit 1 ;; \
     esac; \
     mkdir -p /root/.cache/camoufox; \
-    curl -fSL "https://github.com/daijro/camoufox/releases/download/v${CAMOUFOX_VERSION}-${CAMOUFOX_RELEASE}/camoufox-${CAMOUFOX_VERSION}-${CAMOUFOX_RELEASE}-lin.${CAMOUFOX_ARCH}.zip" \
+    curl -fSL "https://github.com/daijro/camoufox/releases/download/v${CAMOUFOX_VERSION}-${CAMOUFOX_TAG}/camoufox-${CAMOUFOX_VERSION}-${CAMOUFOX_RELEASE}-lin.${CAMOUFOX_ARCH}.zip" \
       -o /tmp/camoufox.zip; \
     (unzip -q /tmp/camoufox.zip -d /root/.cache/camoufox || true); \
     chmod -R 755 /root/.cache/camoufox; \
