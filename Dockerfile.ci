@@ -1,10 +1,10 @@
 # CI/CD Dockerfile — downloads binaries during build (no bind mounts needed).
 # For local builds with pre-downloaded binaries, use the default Dockerfile + Makefile.
 
-FROM node:20-slim
+FROM node:slim
 
-ARG CAMOUFOX_VERSION=135.0.1
-ARG CAMOUFOX_RELEASE=beta.24
+ARG CAMOUFOX_VERSION=150.0.2
+ARG CAMOUFOX_RELEASE=alpha.26
 ARG TARGETARCH
 
 # Install dependencies for Camoufox (Firefox-based)
@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     libxtst6 \
     # Mesa OpenGL/EGL for WebGL support (software rendering via llvmpipe)
-    libegl1-mesa \
+    libegl-mesa0 \
     libgl1-mesa-dri \
     libgbm1 \
     # Xvfb virtual display
@@ -38,8 +38,9 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
     unzip \
-    # yt-dlp runtime dependency
-    python3-minimal \
+    make \
+    g++ \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Download and install Camoufox
@@ -50,7 +51,7 @@ RUN set -eux; \
       *) echo "Unsupported arch: ${TARGETARCH}" && exit 1 ;; \
     esac; \
     mkdir -p /root/.cache/camoufox; \
-    curl -fSL "https://github.com/daijro/camoufox/releases/download/v${CAMOUFOX_VERSION}-${CAMOUFOX_RELEASE}/camoufox-${CAMOUFOX_VERSION}-${CAMOUFOX_RELEASE}-lin.${CAMOUFOX_ARCH}.zip" \
+    curl -fSL "https://github.com/daijro/camoufox/releases/download/v${CAMOUFOX_VERSION}-beta.25/camoufox-${CAMOUFOX_VERSION}-${CAMOUFOX_RELEASE}-lin.${CAMOUFOX_ARCH}.zip" \
       -o /tmp/camoufox.zip; \
     (unzip -q /tmp/camoufox.zip -d /root/.cache/camoufox || true); \
     chmod -R 755 /root/.cache/camoufox; \

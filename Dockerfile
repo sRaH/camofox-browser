@@ -1,9 +1,9 @@
-FROM node:22-slim AS camofox-browser
+FROM node:slim AS camofox-browser
 
 # Pinned Camoufox version for reproducible builds
 # Update these when upgrading Camoufox
-ARG CAMOUFOX_VERSION=135.0.1
-ARG CAMOUFOX_RELEASE=beta.24
+ARG CAMOUFOX_VERSION=150.0.2
+ARG CAMOUFOX_RELEASE=alpha.25
 ARG ARCH=x86_64
 
 # Install dependencies for Camoufox (Firefox-based)
@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y \
     libxtst6 \
     # Mesa OpenGL/EGL for WebGL support (software rendering via llvmpipe)
     # Without these, Firefox cannot create WebGL contexts -- a major bot detection signal
-    libegl1-mesa \
+    libegl-mesa0 \
     libgl1-mesa-dri \
     libgbm1 \
     # Xvfb virtual display -- runs Camoufox as if on a real desktop (better anti-detection)
@@ -40,8 +40,9 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
     unzip \
-    # yt-dlp runtime dependency
-    python3-minimal \
+    make \
+    g++ \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Pre-bake Camoufox browser binary into image via bind mount (downloaded by Makefile)
